@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+    <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+
+<body>
+    <div id="tabla"></div>
+
+
+</body>
+
+<script>
+    const divTabla = document.getElementById('tabla');
+    const data = {
+        'id': 'tabla-pedimentos',
+        'clase': 'tabla-basic',
+        'Titulos': ['Id', 'Referencia', 'Pediemento', 'Estatus', 'Fecha Pedimento', 'Anticipo', 'Fecha Factura', 'Folio Factura', 'Proveedor', 'Terminado'],
+        'lickConsulta': 'http://127.0.0.1:5000/pedimentos/consulta-referencias',
+        'nFilasPaginas': 15,
+    }
+
+    class crearTabla {
+        constructor(data) {
+            this.data = data;
+            this.id = data.id;
+            this.clase = data.clase;
+            this.titulos = data.Titulos;
+            this.cuerpo = data.cuerpo;
+            this.lickConsulta = data.lickConsulta;
+            this.nFilasPaginas = data.nFilasPaginas;
+            this.filtro = data.filtro;
+        }
+
+        crearTitulos() {
+            const titulos = document.createElement('tr');
+            this.titulos.forEach(element => {
+                const titulo = document.createElement('th');
+                titulo.innerHTML = element;
+                titulos.appendChild(titulo);
+            });
+            return titulos;
+        }
+
+        crearCuerpo(filtro) {
+            return new Promise((resolve, reject) => {
+                const xhr = new XMLHttpRequest();
+                xhr.open('POST', this.data.lickConsulta, true);
+                xhr.setRequestHeader('Content-Type', 'application/json');
+                xhr.onload = function () {
+                    if (this.status === 200) {
+                        const respuesta = JSON.parse(this.responseText);
+                        const cuerpo = document.createElement('tbody');
+                        respuesta.forEach(element => {
+                            const fila = document.createElement('tr');
+                            let columnIndex = 1; // Variable para contar el índice de la columna
+                            for (const key in element) {
+                                const celda = document.createElement('td');
+                                celda.innerHTML = element[key];
+                                // Agregar clase a la celda basada en el índice de la columna
+                                celda.classList.add('columna-' + columnIndex);
+                                fila.appendChild(celda);
+                                columnIndex++;
+                            }
+                            cuerpo.appendChild(fila);
+                        });
+
+                        resolve(cuerpo);
+                    } else {
+                        reject(new Error('Error en la solicitud'));
+                    }
+                };
+                xhr.send(JSON.stringify(filtro));
+            });
+        }
+
+        paginarTabla(tablaId, paginacionId, filasPorPagina) {
+            const self = this;
+            const tabla = document.getElementById(tablaId);
+            const tbody = tabla.getElementsByTagName('tbody')[0];
+            const filas = tbody.getElementsByTagName('tr');
+            const numFilas = filas.length;
+            const numPaginas = Math.ceil(numFilas / filasPorPagina);
+
+            const paginacion = document.getElementById(paginacionId);
+            paginacion.innerHTML = '';
+
+            const paginasLabel = document.createElement('span');
+            paginasLabel.innerText = 'Página : ';
+            paginacion.appendChild(paginasLabel);
+
+            const paginaActualLabel = document.createElement('span');
+            paginacion.appendChild(paginaActualLabel);
+
+
+
+            const totalPaginasLabel = document.createElement('span');
+            totalPaginasLabel.innerText = ' de ' + numPaginas;
+            paginacion.appendChild(totalPaginasLabel);
+
+
+            const flechaInicio = document.createElement('a');
+            flechaInicio.href = '#';
+            flechaInicio.innerText = '<<';
+            flechaInicio.onclick = function () {
+                self.mostrarPagina(1, filasPorPagina, filas);
+                paginaActualLabel.innerText = '1';
+            };
+            paginacion.appendChild(flechaInicio);
+
+            const flechaAtras = document.createElement('a');
+            flechaAtras.href = '#';
+            flechaAtras.innerText = '<';
+            flechaAtras.onclick = function () {
+                const paginaActual = Math.max(1, parseInt(paginaActualLabel.innerText) - 1);
+                self.mostrarPagina(paginaActual, filasPorPagina, filas);
+                paginaActualLabel.innerText = paginaActual;
+            };
+            paginacion.appendChild(flechaAtras);
+
+            const flechaAdelante = document.createElement('a');
+            flechaAdelante.href = '#';
+            flechaAdelante.innerText = '>';
+            flechaAdelante.onclick = function () {
+                const paginaActual = Math.min(numPaginas, parseInt(paginaActualLabel.innerText) + 1);
+                self.mostrarPagina(paginaActual, filasPorPagina, filas);
+                paginaActualLabel.innerText = paginaActual;
+            };
+            paginacion.appendChild(flechaAdelante);
+
+            const flechaFin = document.createElement('a');
+            flechaFin.href = '#';
+            flechaFin.innerText = '>>';
+            flechaFin.onclick = function () {
+                self.mostrarPagina(numPaginas, filasPorPagina, filas);
+                paginaActualLabel.innerText = numPaginas;
+            };
+            paginacion.appendChild(flechaFin);
+
+            this.mostrarPagina(1, filasPorPagina, filas);
+            paginaActualLabel.innerText = '1';
+        }
+
+        mostrarPagina(pagina, filasPorPagina, filas) {
+            const inicio = (pagina - 1) * filasPorPagina;
+            const fin = inicio + filasPorPagina;
+            for (let i = 0; i < filas.length; i++) {
+                if (i >= inicio && i < fin) {
+                    filas[i].style.display = '';
+                } else {
+                    filas[i].style.display = 'none';
+                }
+            }
+        }
+
+        crearInputFiltro() {
+            const self = this;
+            const inputFiltro = document.createElement('input');
+            inputFiltro.setAttribute('id', this.id + '-filtro');
+            inputFiltro.setAttribute('type', 'text');
+            inputFiltro.setAttribute('placeholder', 'Filtrar');
+            inputFiltro.onkeyup = function () {
+                const filtro = this.value.toUpperCase();
+                // verificar el tamaño de la cade si es mayor a 3 caracteres filtrar    
+                if (filtro.length > 3) {
+                    const tabla = document.getElementById('tabla-pedimentos');
+                    const tbody = tabla.getElementsByTagName('tbody')[0];
+                    const filas = tbody.getElementsByTagName('tr');
+                    for (let i = 0; i < filas.length; i++) {
+                        const celdas = filas[i].getElementsByTagName('td');
+                        let ocultarFila = true;
+                        for (let j = 0; j < celdas.length && ocultarFila; j++) {
+                            const celda = celdas[j];
+                            if (celda.innerHTML.toUpperCase().indexOf(filtro) > -1) {
+                                ocultarFila = false;
+                            }
+                        }
+                        if (ocultarFila) {
+                            filas[i].style.display = 'none';
+                        } else {
+                            filas[i].style.display = '';
+                        }
+                    }
+                } else {
+                    self.paginarTabla(self.id, self.id + '-paginacion', self.nFilasPaginas);
+                }
+            };
+            return inputFiltro;
+        }
+
+        llamarATabla(filtro, callback) {
+            const tabla = document.createElement('table');
+            tabla.setAttribute('id', this.id);
+            tabla.setAttribute('class', this.clase);
+            tabla.appendChild(this.crearTitulos());
+            this.crearCuerpo(filtro).then((cuerpo) => {
+                tabla.appendChild(cuerpo);
+                const divPaginacion = document.createElement('div');
+                divPaginacion.setAttribute('id', this.id + '-paginacion');
+                divTabla.appendChild(divPaginacion);
+                this.paginarTabla(this.id, this.id + '-paginacion', this.nFilasPaginas);
+                const inputFiltro = this.crearInputFiltro();
+                tabla.parentNode.insertBefore(inputFiltro, tabla);
+                tabla.addEventListener('dblclick', function (e) {
+                    const fila = e.target.parentNode;
+                    const celdas = fila.getElementsByTagName('td');
+                    const datos = {};
+                    for (let i = 0; i < celdas.length; i++) {
+                        const celda = celdas[i];
+                        const columna = celda.classList[0];
+                        datos[columna] = celda.innerHTML;
+                    }
+                    callback(datos);
+                });
+
+            }).catch((error) => {
+                console.log(error);
+            });
+            return tabla;
+        }
+    
+    }
+
+    const tabla = new crearTabla(data);
+    divTabla.appendChild(tabla.llamarATabla({'filtro': 'fecha'}, (datos) => {
+        console.log(datos);
+    }));
+
+
+
+
+
+    
+
+
+</script>
